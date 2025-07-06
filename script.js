@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("[CSV Debug] Header row detected.");
             }
             const startIndex = hasHeader ? 1 : 0;
+
             for (let i = startIndex; i < lines.length; i++) {
                 const line = lines[i];
                 console.log(`[CSV Debug] Processing line ${i + 1} (Row ${i + (hasHeader?2:1)}): "${line}"`);
@@ -80,10 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     continue;
                 }
 
-                const columns = parseCsvLine(line);
-                console.log(`[CSV Debug] Line ${i + 1} parsed into columns:`, JSON.stringify(columns));
+                const columns = parseCsvLine(line); // Use NEW robust parser
+                console.log(`[CSV Debug] Line ${i + 1} parsed into columns (${columns.length}):`, JSON.stringify(columns));
 
-                if (columns.length > 7) {
+                if (columns.length > 7) { // Ensure column H (index 7) is accessible
                     const keyword = columns[0]?.trim();
                     const rawUrl = columns[7]?.trim();
                     const serpAttribute = columns[6]?.trim() || '';
@@ -140,27 +141,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function parseCsvLine(line) {
         const columns = [];
-        let currentColumn = '';
+        let cellBuffer = [];
         let inQuotes = false;
+
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
+            const nextChar = line[i+1];
+
             if (char === '"') {
-                if (inQuotes && i + 1 < line.length && line[i+1] === '"') {
-                    currentColumn += '"';
-                    i++;
+                if (inQuotes && nextChar === '"') {
+                    // Escaped double quote within a quoted field
+                    cellBuffer.push('"');
+                    i++; // Skip the second quote of the pair
                 } else {
+                    // Start or end of a quoted field
                     inQuotes = !inQuotes;
                 }
             } else if (char === ',' && !inQuotes) {
-                columns.push(currentColumn.trim());
-                currentColumn = '';
+                // Delimiter found outside of quotes
+                columns.push(cellBuffer.join('').trim());
+                cellBuffer = []; // Reset buffer for next cell
             } else {
-                currentColumn += char;
+                // Regular character, add to current cell buffer
+                cellBuffer.push(char);
             }
         }
-        columns.push(currentColumn.trim());
+        // Add the last cell's content
+        columns.push(cellBuffer.join('').trim());
         return columns;
     }
+
 
     function processParsedCsvData(rawCsvEntries) {
         console.log("[CSV Debug] Processing parsed CSV data. Raw entries count:", rawCsvEntries.length);
@@ -456,10 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     liveFetchButton.disabled = true;
                     liveFetchButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Fetching...';
 
-                    // Optionally hide manual section when live fetch starts, show if it fails
-                    // if (manualAnalysisSection) manualAnalysisSection.style.display = 'none';
-                    // if (toggleManualButton) toggleManualButton.textContent = 'Show Manual Input';
-
                     fetchUrlMetadataWithPHP(currentEntryRef.url, currentEntryRef.manualContentAnalysis, card)
                         .finally(() => {
                             liveFetchButton.disabled = false;
@@ -529,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cardElement.querySelector('.word-count-display').textContent = analysisObject.wordCount || '-';
                     const viewButton = cardElement.querySelector('.view-extracted-content-button');
                     viewButton.style.display = (analysisObject.metaTitle || analysisObject.metaDescription) ? 'inline-block' : 'none';
-                    if (manualAnalysisSection) manualAnalysisSection.style.display = 'none'; // Hide manual section on success
+                    if (manualAnalysisSection) manualAnalysisSection.style.display = 'none';
                     if (toggleManualButton) toggleManualButton.textContent = 'Show Manual Input';
                 }
                 alert(`Successfully fetched metadata for ${urlToFetch}`);
@@ -539,13 +545,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (result.httpStatusCode) errorMessage += ` (Proxy HTTP Status: ${result.httpStatusCode})`;
                 alert(`Failed to fetch metadata: ${errorMessage}`);
                 console.error("PHP metadata fetch error:", result);
-                if (manualAnalysisSection) manualAnalysisSection.style.display = 'block'; // Show on failure
+                if (manualAnalysisSection) manualAnalysisSection.style.display = 'block';
                 if (toggleManualButton) toggleManualButton.textContent = 'Hide Manual Input';
             }
         } catch (error) {
             console.error('Error calling fetch_url_meta.php:', error);
             alert(`Error fetching metadata: ${error.message}. Check console. Manual paste is available.`);
-             if (manualAnalysisSection) manualAnalysisSection.style.display = 'block'; // Show on any error
+             if (manualAnalysisSection) manualAnalysisSection.style.display = 'block';
              if (toggleManualButton) toggleManualButton.textContent = 'Hide Manual Input';
         }
     }
@@ -851,6 +857,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial load trigger
     loadInitialReportsFromServer();
 });
+
+[end of script.js]
+
+[end of script.js]
 
 [end of script.js]
 
