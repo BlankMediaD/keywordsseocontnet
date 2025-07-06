@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keyword Clustering Tool</title>
+    <title>Advanced URL & Keyword Analyzer</title>
+    <link rel="icon" href="data:,"> <!-- Placeholder to prevent favicon.ico 404 -->
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom CSS -->
@@ -30,10 +31,10 @@
                 <div class="card shadow-sm app-card">
                     <div class="card-body">
                         <h5 class="card-title text-center mb-4">Data Input & Management</h5>
-                        <div class="row">
-                            <div class="col-md-6">
+                        <div class="row justify-content-center">
+                            <div class="col-md-8"> {/* Centered column for CSV upload */}
                                 <div class="form-group">
-                                    <label for="csvFile">1. Upload New CSV File:</label>
+                                    <label for="csvFile">Upload New CSV File:</label>
                                     <div class="custom-file">
                                         <input type="file" class="custom-file-input" id="csvFile" accept=".csv">
                                         <label class="custom-file-label" for="csvFile">Choose CSV...</label>
@@ -41,16 +42,7 @@
                                 </div>
                                 <button id="processCsvButton" class="btn btn-primary btn-block app-button">Process CSV & Add to Current Data</button>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="loadJsonReport">2. Or Load Client-Side JSON Backup:</label>
-                                    <div class="custom-file">
-                                        <input type="file" class="custom-file-input" id="loadJsonReport" accept=".json">
-                                        <label class="custom-file-label" for="loadJsonReport">Choose JSON...</label>
-                                    </div>
-                                </div>
-                                <button id="loadJsonButton" class="btn btn-outline-info btn-block">Load Client-Side JSON (Backup)</button>
-                            </div>
+                            {/* Removed the col-md-6 for Load Client-Side JSON Backup */}
                         </div>
                         <div id="loadingIndicator" class="text-center mt-3" style="display: none;">
                             <div class="spinner-border text-primary" role="status">
@@ -134,7 +126,7 @@
             -->
         </div>
 
-        <div id="report-controls" class="mt-3 mb-5 text-center">
+        <div id="report-controls" class="mt-3 mb-5 text-center" style="display: none;">
             <button id="saveAllModifiedButton" class="btn btn-success app-button-alt mr-2">Save All Modified to Server</button>
             <button id="downloadAllDataButton" class="btn btn-warning app-button-alt">Download All (Client Backup)</button>
              <p class="text-muted small mt-2">"Save All Modified" updates server files for entries with a Topic. "Download All" is a local backup of current data.</p>
