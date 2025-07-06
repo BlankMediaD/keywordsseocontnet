@@ -1,0 +1,313 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7f6; /* Light grayish background */
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.navbar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+header h1 {
+    color: #333;
+    font-weight: 300; /* Lighter font weight for modern look */
+}
+
+header .lead {
+    color: #555;
+    font-size: 1.1rem;
+}
+
+.app-card {
+    border: none;
+    border-radius: 15px; /* Softer corners */
+    background: #ffffff;
+    padding: 20px;
+    margin-bottom: 30px; /* Ensure space below card */
+}
+
+.app-card .card-title {
+    font-weight: 600;
+    color: #5e72e4; /* A nice blue */
+}
+
+.form-control, .custom-select, .custom-file-input {
+    border-radius: 8px; /* Softer corners for inputs */
+    border-color: #ced4da; /* Standard bootstrap border */
+}
+
+.custom-file-label::after {
+    background-color: #5e72e4;
+    color: white;
+    border-radius: 0 8px 8px 0; /* Match input field */
+}
+
+.btn-primary.app-button {
+    background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease;
+}
+
+.btn-primary.app-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-success.app-button-alt {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease;
+}
+
+.btn-success.app-button-alt:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+
+#clusters-container .card {
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    border-radius: 10px; /* Ensure consistent border radius */
+}
+
+/* Styling for the new URL Entry Cards */
+.url-entry .card-header {
+    background: linear-gradient(135deg, #f0f2f5 0%, #e9ecef 100%); /* Lighter gradient */
+    color: #333;
+    font-weight: 500;
+    border-bottom: 1px solid #d8dde2;
+    padding: 0.5rem 1rem;
+}
+
+.url-entry .card-header h5 a {
+    color: #0056b3;
+    text-decoration: none;
+    font-size: 0.95rem; /* Slightly smaller URL title */
+}
+.url-entry .card-header h5 a:hover {
+    text-decoration: underline;
+}
+.client-name-badge {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+    vertical-align: middle;
+}
+
+.toggle-expand-button {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+}
+
+.url-entry .card-body {
+    padding: 1rem;
+    background-color: #fff; /* Ensure card body has a default white bg */
+    transition: background-color 0.3s ease-in-out; /* Smooth transition for status color change */
+}
+
+.url-entry .card-body h6 { /* Section titles within card body */
+    font-weight: 600;
+    color: #343a40; /* Darker grey */
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.3rem;
+}
+
+.keywords-list .keyword-item {
+    display: inline-block; /* Allow items to wrap nicely */
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+.keyword-text {
+    cursor: pointer; /* Indicate clickability for copy */
+    background-color: #007bff; /* Primary blue for keywords */
+    color: white;
+    font-weight: 500;
+}
+.keyword-text:hover {
+    background-color: #0056b3;
+}
+.serp-attribute-tag {
+    background-color: #6c757d; /* Muted grey for SERP attributes */
+    color: white;
+    font-size: 0.75rem;
+}
+
+.url-entry .topic-input,
+.url-entry .status-select,
+.url-entry .competitors-input,
+.url-entry .client-name-input,
+.url-entry .pasted-source-input {
+    border-radius: 5px;
+    font-size: 0.85rem; /* Smaller font for inputs */
+}
+.url-entry label.small { /* Labels for these inputs */
+    font-weight: 500;
+    color: #495057;
+    font-size: 0.8rem; /* Smaller label font */
+}
+
+.manual-analysis-section {
+    background-color: #f8f9fa; /* Light background for this section */
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+.meta-results p {
+    margin-bottom: 0.3rem !important;
+    font-size: 0.8rem;
+}
+.meta-results strong {
+    color: #555;
+}
+
+
+/* Status color indicators - these apply to the .card-body of .url-entry */
+/* The JS adds these classes to the card-body directly */
+.status-used-for-content { background-color: #d4edda !important; color: #155724 !important; border-left: 5px solid #28a745 !important; }
+.status-pending-approval { background-color: #fff3cd !important; color: #856404 !important; border-left: 5px solid #ffc107 !important; }
+.status-not-usable { background-color: #f8d7da !important; color: #721c24 !important; border-left: 5px solid #dc3545 !important; }
+.status-already-used { background-color: #cce5ff !important; color: #004085 !important; border-left: 5px solid #007bff !important; }
+.status-used { background-color: #d1ecf1 !important; color: #0c5460 !important; border-left: 5px solid #17a2b8 !important; }
+.status-good-to-send-for-approval { background-color: #e2e3e5 !important; color: #383d41 !important; border-left: 5px solid #6c757d !important; }
+
+
+/* Adjustments for fixed footer to prevent overlap */
+body {
+    padding-bottom: 70px; /* Height of the footer + some margin */
+}
+
+/* SERP Icon Styling */
+.serp-icon {
+    display: inline-block;
+    font-style: normal; /* Ensure emojis/text look right */
+    margin-left: 3px; /* Add a little space if it's next to text */
+}
+.serp-icon-legend {
+    display: inline-block;
+    min-width: 25px; /* Ensure alignment in legend */
+    text-align: center;
+}
+
+#serpLegendModal .modal-body ul li {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+/* Loading Indicator Styling */
+#loadingIndicator .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+#loadingIndicator p {
+    font-size: 1.1rem;
+    color: #555;
+    margin-top: 10px;
+}
+
+/* Ensure buttons in card footers are nicely spaced if multiple */
+.url-entry .card-body .mt-2 > .btn {
+    margin-right: 5px; /* Add some space between buttons like Save and Delete */
+}
+.url-entry .card-body .mt-2 > .btn:last-child {
+    margin-right: 0; /* No margin for the last button */
+}
+
+
+.footer {
+    background-color: #e9ecef !important;
+    padding: 1rem 0;
+    color: #6c757d;
+    box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
+    /* fixed-bottom is now applied via class in HTML */
+}
+
+
+/* Custom file input label text */
+.custom-file-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Responsive adjustments if needed */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    header h1 {
+        font-size: 2.5rem;
+    }
+    .url-entry .form-row .form-group {
+        /* Stack form group elements in card on smaller screens if desired */
+        /* flex-basis: 100%; */
+    }
+}
+
+/* Remove old cluster-accordion styles if they are no longer used */
+/* For example, if #clusters-container is fully replaced by #url-entries-container */
+/* .cluster-accordion { display: none; } */
+/* Commenting out for now, can be deleted if confirmed they are not needed.
+.cluster-accordion .card-header button {
+    text-decoration: none;
+    color: #333;
+    width: 100%;
+    text-align: left;
+    padding: .75rem 1.25rem;
+    background: none;
+    border: none;
+}
+
+.cluster-accordion .card-header button:hover,
+.cluster-accordion .card-header button:focus {
+    text-decoration: none;
+    background-color: rgba(0,0,0,0.03);
+}
+
+.cluster-accordion .card-body {
+    padding: 1.25rem;
+}
+
+.cluster-accordion .url-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+.cluster-accordion .url-item:last-child {
+    border-bottom: none;
+}
+
+.status-dropdown-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+.status-dropdown-container label {
+    font-weight: 500;
+    margin-bottom: .5rem;
+    display: block;
+}
+.status-select.form-control-sm {
+    height: calc(1.5em + .5rem + 2px);
+    padding: .25rem .5rem;
+    font-size: .875rem;
+    line-height: 1.5;
+    border-radius: .2rem;
+}
+*/

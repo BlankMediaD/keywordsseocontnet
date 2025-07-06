@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyword Clustering Tool</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-5">
+        <div class="container">
+            <a class="navbar-brand" href="#">Keyword Clustering & Reporting</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="text-center mb-4">
+            <div class="d-flex justify-content-center align-items-center">
+                <h1 class="display-4">Advanced URL & Keyword Analyzer</h1>
+                <button id="serpInfoButton" class="btn btn-info btn-sm ml-3" title="SERP Attribute Legend">ℹ️ Legend</button>
+            </div>
+            <p class="lead">Upload CSV, analyze URLs with server-side fetching, manage keywords, and save/load reports to/from server.</p>
+        </header>
+
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card shadow-sm app-card">
+                    <div class="card-body">
+                        <h5 class="card-title text-center mb-4">Data Input & Management</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="csvFile">1. Upload New CSV File:</label>
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input" id="csvFile" accept=".csv">
+                                        <label class="custom-file-label" for="csvFile">Choose CSV...</label>
+                                    </div>
+                                </div>
+                                <button id="processCsvButton" class="btn btn-primary btn-block app-button">Process CSV & Add to Current Data</button>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="loadJsonReport">2. Or Load Client-Side JSON Backup:</label>
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input" id="loadJsonReport" accept=".json">
+                                        <label class="custom-file-label" for="loadJsonReport">Choose JSON...</label>
+                                    </div>
+                                </div>
+                                <button id="loadJsonButton" class="btn btn-outline-info btn-block">Load Client-Side JSON (Backup)</button>
+                            </div>
+                        </div>
+                        <div id="loadingIndicator" class="text-center mt-3" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <p>Loading reports from server...</p> <!-- This text can be dynamic -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="url-entries-container" class="mt-5">
+            <!--
+            Dynamically Generated URL Entry Card Example (placeholders for JS rendering):
+            <div class="card url-entry mb-3" id="url-entry-{{id_placeholder}}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                     <div class="url-header-main">
+                        <h5 class="mb-0 url-title d-inline-block">
+                            <a href="{{url_placeholder}}" target="_blank" title="{{url_placeholder}}">{{truncated_url_placeholder}}</a>
+                        </h5>
+                        <span class="badge badge-pill badge-light keyword-count-badge ml-2" title="Number of unique keywords from CSV for this URL">X Keyword(s)</span>
+                        <span class="badge client-name-badge ml-1" style="background-color: {{client_color_placeholder}};">{{client_name_placeholder}}</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary toggle-expand-button" data-entry-id="{{id_placeholder}}">Expand</button>
+                </div>
+                <div class="card-body" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Associated Keywords (from CSV):</h6>
+                            <div class="keywords-list mb-3">
+                                 <div class="keyword-item mb-1">
+                                    <span class="badge badge-primary keyword-text" title="Click to copy: {{kw.text}}">{{kw.text}}</span>
+                                    <span class="serp-icon ml-1" title="{{kw.serpAttribute}}">{{icon_placeholder}}</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="topic-{{id_placeholder}}" class="small font-weight-bold">Topic (used for server filename):</label>
+                                <input type="text" class="form-control form-control-sm topic-input" id="topic-{{id_placeholder}}" placeholder="Enter topic" data-entry-id="{{id_placeholder}}">
+                            </div>
+                            <div class="form-group">
+                                <label for="status-{{id_placeholder}}" class="small font-weight-bold">Status:</label>
+                                <select class="form-control form-control-sm status-select" id="status-{{id_placeholder}}" data-entry-id="{{id_placeholder}}"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="competitors-{{id_placeholder}}" class="small font-weight-bold">Competitors:</label>
+                                <textarea class="form-control form-control-sm competitors-input" id="competitors-{{id_placeholder}}" rows="2" placeholder="Enter competitor URLs/notes" data-entry-id="{{id_placeholder}}"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="small font-weight-bold">Page Analysis:</h6>
+                            <button class="btn btn-sm btn-primary analyze-content-button mb-2" data-entry-id="{{id_placeholder}}">Fetch URL Meta (Live)</button>
+                             <small class="form-text text-muted mb-2">Or, paste source below and click "Extract Info from Paste".</small>
+                            <div class="manual-analysis-section" style="border: 1px solid #eee; padding: 10px; border-radius: 5px;">
+                                <div class="form-group">
+                                    <label for="pastedSource-{{id_placeholder}}" class="small">Paste HTML Source (Fallback):</label>
+                                    <textarea class="form-control form-control-sm pasted-source-input" id="pastedSource-{{id_placeholder}}" rows="3" placeholder="Paste HTML source..." data-entry-id="{{id_placeholder}}" style="display:block;"></textarea> <!-- Made visible by default for clarity -->
+                                    <button class="btn btn-sm btn-dark extract-meta-button mt-1" data-entry-id="{{id_placeholder}}">Extract Info from Paste</button>
+                                </div>
+                                <div class="meta-results small">
+                                    <p class="mb-1"><strong>Meta Title:</strong> <span class="meta-title-display">-</span></p>
+                                    <p class="mb-1"><strong>Meta Desc:</strong> <span class="meta-desc-display">-</span></p>
+                                    <p class="mb-1"><strong>Meta Image:</strong> <span class="meta-image-display">-</span></p>
+                                    <p class="mb-1"><strong>Word Count:</strong> <span class="word-count-display">-</span></p>
+                                    <button class="btn btn-sm btn-outline-info view-extracted-content-button mt-1" data-entry-id="{{id_placeholder}}" style="display:none;">View Details</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="form-group mt-2">
+                        <label for="clientName-{{id_placeholder}}" class="small font-weight-bold">Client Name (for this entry):</label>
+                        <input type="text" class="form-control form-control-sm client-name-input" id="clientName-{{id_placeholder}}" placeholder="Enter client name" data-entry-id="{{id_placeholder}}">
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-success save-entry-button mr-2" data-entry-id="{{id_placeholder}}">Save to Server</button>
+                        <button class="btn btn-sm btn-danger delete-entry-button" data-entry-id="{{id_placeholder}}" title="Delete this entry from server">Delete from Server</button>
+                    </div>
+                </div>
+            </div>
+            -->
+        </div>
+
+        <div id="report-controls" class="mt-3 mb-5 text-center">
+            <button id="saveAllModifiedButton" class="btn btn-success app-button-alt mr-2">Save All Modified to Server</button>
+            <button id="downloadAllDataButton" class="btn btn-warning app-button-alt">Download All (Client Backup)</button>
+             <p class="text-muted small mt-2">"Save All Modified" updates server files for entries with a Topic. "Download All" is a local backup of current data.</p>
+        </div>
+    </div>
+
+    <!-- Modal for SERP Attribute Legend -->
+    <div class="modal fade" id="serpLegendModal" tabindex="-1" role="dialog" aria-labelledby="serpLegendModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="serpLegendModalLabel">SERP Attribute Icon Legend</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-unstyled" id="serpLegendList">
+                        <!-- Legend items will be populated by JS -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Displaying Extracted Content -->
+    <div class="modal fade" id="contentDisplayModal" tabindex="-1" role="dialog" aria-labelledby="contentDisplayModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contentDisplayModalLabel">Extracted Page Content</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <h6 id="modalMetaTitle">Meta Title: <span></span></h6>
+                    <p id="modalMetaDescription">Meta Description: <span></span></p>
+                    <div id="modalMetaImageContainer">
+                        <p>Meta Image:</p>
+                        <img id="modalMetaImage" src="" alt="Meta Image" class="img-fluid mb-2" style="max-height: 200px; display: none;">
+                        <span id="modalMetaImageUrl"></span>
+                    </div>
+                    <p id="modalWordCount">Word Count: <span></span></p>
+                    <hr>
+                    <h6>Pasted Source (Preview):</h6>
+                    <pre id="modalPastedSourcePreview" style="max-height: 200px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 5px;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer bg-light text-center py-3 mt-auto fixed-bottom">
+        <div class="container">
+            <span class="text-muted">Advanced URL & Keyword Analyzer &copy; 2024</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS, Popper.js, and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Custom JS -->
+    <script src="script.js"></script>
+    <script>
+        // Script to update custom file input labels (for both CSV and JSON)
+        document.querySelectorAll('.custom-file-input').forEach(input => {
+            input.addEventListener('change', function(e) {
+                const fileName = e.target.files[0]?.name || (e.target.id === 'csvFile' ? "Choose CSV..." : "Choose JSON...");
+                const nextSibling = e.target.nextElementSibling; // The label
+                if (nextSibling) {
+                    nextSibling.innerText = fileName;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
