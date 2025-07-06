@@ -235,8 +235,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).join('');
             }
 
-            let isOtherClientSelected = entry.clientName === clientNameOtherSpecify || (entry.clientName && !clientNameOptions.includes(entry.clientName));
-            let otherClientValue = (isOtherClientSelected && entry.clientName !== clientNameOtherSpecify) ? entry.clientName : '';
+            // Logic for client name dropdown pre-selection
+            let isOtherClientSelectedInitially = entry.clientName === clientNameOtherSpecify ||
+                                               (entry.clientName && !clientNameOptions.includes(entry.clientName));
+            let otherClientValueInitially = (isOtherClientSelected && entry.clientName !== clientNameOtherSpecify) ? entry.clientName : '';
+            if (entry.clientName === clientNameOtherSpecify) { // If "Other (Specify)" was literally the saved value
+                otherClientValueInitially = ''; // Start with an empty text box for user to type
+            }
+
 
             card.innerHTML = `
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -296,18 +302,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label for="clientNameSelect-${entryId}" class="small font-weight-bold">Client Name (for this entry):</label>
                         <select class="form-control form-control-sm client-name-select" id="clientNameSelect-${entryId}" data-entry-id="${entryId}">
                             ${clientNameOptions.map(opt => {
-                                // If entry.clientName is not in options, "Other (Specify)" should be selected.
-                                // If entry.clientName is in options, that one should be selected.
                                 let selected = false;
-                                if (isOtherClientSelected && opt === clientNameOtherSpecify) {
+                                if (isOtherClientSelectedInitially && opt === clientNameOtherSpecify) {
                                     selected = true;
-                                } else if (!isOtherClientSelected && entry.clientName === opt) {
+                                } else if (!isOtherClientSelectedInitially && entry.clientName === opt) {
                                     selected = true;
                                 }
                                 return `<option value="${opt}" ${selected ? 'selected' : ''}>${opt}</option>`;
                             }).join('')}
                         </select>
-                        <input type="text" class="form-control form-control-sm client-name-other-input mt-1" id="clientNameOther-${entryId}" placeholder="Specify other client" data-entry-id="${entryId}" style="display: ${isOtherClientSelected ? 'block' : 'none'};" value="${otherClientValue}">
+                        <input type="text" class="form-control form-control-sm client-name-other-input mt-1" id="clientNameOther-${entryId}" placeholder="Specify other client" data-entry-id="${entryId}" style="display: ${isOtherClientSelectedInitially ? 'block' : 'none'};" value="${otherClientValueInitially}">
                     </div>
                     <div class="mt-2">
                         <button class="btn btn-sm btn-success save-entry-button mr-2" data-entry-id="${entryId}">Save to Server</button>
@@ -350,14 +354,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selectedValue = e.target.value;
                 if (selectedValue === clientNameOtherSpecify) {
                     clientNameOtherInputElement.style.display = 'block';
-                    // Don't clear clientNameOtherInputElement.value here, user might be switching back and forth
-                    // currentEntryRef.clientName = clientNameOtherInputElement.value.trim(); // Use existing text if any
+                    currentEntryRef.clientName = clientNameOtherInputElement.value.trim(); // Use current text if any, or empty
                     clientNameOtherInputElement.focus();
-                     // If "Other" is selected, but text input is empty, clientName is effectively empty until typed
-                    currentEntryRef.clientName = clientNameOtherInputElement.value.trim() || '';
                 } else {
                     clientNameOtherInputElement.style.display = 'none';
-                    // clientNameOtherInputElement.value = ''; // No need to clear if hidden
                     currentEntryRef.clientName = selectedValue;
                 }
                 updateClientBadge(card, currentEntryRef);
@@ -372,24 +372,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             function updateClientBadge(cardElement, entryRef) {
                 const badge = cardElement.querySelector('.client-name-badge');
-                let displayName = entryRef.clientName || 'No Client';
-                if (entryRef.clientName === clientNameOtherSpecify && clientNameOtherInputElement.value.trim() === '') {
-                    // If "Other" is selected but input is blank, show "No Client" or "Other"
-                    displayName = 'Other (Specify)'; // Or 'No Client'
-                } else if (clientNameSelectElement.value === clientNameOtherSpecify) {
-                    displayName = entryRef.clientName.trim() || 'Other (Specify)';
+                let displayName = 'No Client';
+                if (entryRef.clientName) {
+                    if (entryRef.clientName === clientNameOtherSpecify && clientNameOtherInputElement.value.trim() === '') {
+                        displayName = 'Other (Specify)'; // Indicates "Other" is chosen but not yet specified
+                    } else {
+                        displayName = entryRef.clientName;
+                    }
                 }
 
-
                 badge.textContent = displayName;
-                if (entryRef.clientName && entryRef.clientName.trim() && !entryRef.clientColor) {
+                if (entryRef.clientName && entryRef.clientName.trim() && entryRef.clientName !== clientNameOtherSpecify && !entryRef.clientColor) {
                     entryRef.clientColor = getRandomColor();
-                } else if (!entryRef.clientName || !entryRef.clientName.trim()) {
+                } else if (!entryRef.clientName || !entryRef.clientName.trim() || (entryRef.clientName === clientNameOtherSpecify && clientNameOtherInputElement.value.trim() === '')) {
                     entryRef.clientColor = '';
                 }
                 badge.style.backgroundColor = entryRef.clientColor || '#6c757d';
             }
-            updateClientBadge(card, currentEntryRef);
+            updateClientBadge(card, currentEntryRef); // Initial call
 
 
             const liveFetchButton = card.querySelector('.analyze-content-button');
@@ -456,10 +456,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 analysisObject.metaDescription = result.data.metaDescription || '';
                 analysisObject.metaImage = result.data.metaImage || '';
                 analysisObject.wordCount = result.data.wordCount || 0;
-                analysisObject.pastedSource = ''; // Clear the stored pasted source data
+                analysisObject.pastedSource = '';
                 if (cardElement) {
                     const pastedSourceTextarea = cardElement.querySelector(`#pastedSource-${cardElement.id.replace('url-entry-','')}`);
-                    if(pastedSourceTextarea) pastedSourceTextarea.value = ''; // Clear the textarea in the UI
+                    if(pastedSourceTextarea) pastedSourceTextarea.value = '';
                     cardElement.querySelector('.meta-title-display').textContent = analysisObject.metaTitle || '-';
                     cardElement.querySelector('.meta-desc-display').textContent = analysisObject.metaDescription || '-';
                     cardElement.querySelector('.meta-image-display').textContent = analysisObject.metaImage || '-';
@@ -522,18 +522,38 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modalMetaDescription').querySelector('span').textContent = analysisData.metaDescription || 'N/A';
         const imgElement = document.getElementById('modalMetaImage');
         const imgUrlSpan = document.getElementById('modalMetaImageUrl');
+        imgElement.style.display = 'none'; // Hide by default
+        imgUrlSpan.textContent = 'N/A';    // Default text
+        imgElement.removeAttribute('src'); // Clear previous src
+        imgElement.onerror = function() {
+            imgUrlSpan.textContent = `Failed to load image (access denied or not found): ${this.src}`;
+            this.style.display = 'none'; // Hide broken image icon
+            this.onerror = null; // Prevent infinite loop if placeholder also fails
+        };
+
         if (analysisData.metaImage) {
-            imgElement.src = sanitizeUrl(analysisData.metaImage);
-            imgElement.style.display = 'block';
-            imgUrlSpan.textContent = analysisData.metaImage;
-        } else {
-            imgElement.style.display = 'none';
-            imgUrlSpan.textContent = 'N/A';
+            const sanitizedImgUrl = sanitizeUrl(analysisData.metaImage);
+            if (sanitizedImgUrl) {
+                imgElement.src = sanitizedImgUrl;
+                imgElement.style.display = 'block';
+                imgUrlSpan.textContent = sanitizedImgUrl; // Show the URL we attempted to load
+            } else {
+                 imgUrlSpan.textContent = 'Invalid image URL provided.';
+            }
         }
         document.getElementById('modalWordCount').querySelector('span').textContent = analysisData.wordCount || 'N/A';
-        document.getElementById('modalPastedSourcePreview').textContent = analysisData.pastedSource ? analysisData.pastedSource.substring(0, 1000) + (analysisData.pastedSource.length > 1000 ? '...' : '') : 'No source pasted.';
+
+        const pastedSourcePreviewElement = document.getElementById('modalPastedSourcePreview');
+        if (pastedSourcePreviewElement) {
+            // CRITICAL: Always use .textContent to prevent HTML injection when displaying user-provided source
+            pastedSourcePreviewElement.textContent = analysisData.pastedSource
+                ? analysisData.pastedSource.substring(0, 1000) + (analysisData.pastedSource.length > 1000 ? '...' : '')
+                : 'No source pasted.';
+        }
+
         $('#contentDisplayModal').modal('show');
     }
+
 
     function truncateUrl(url, maxLength = 60) {
         if (url.length <= maxLength) return url;
@@ -721,13 +741,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         let entries = Array.isArray(reportRes.data) ? reportRes.data : [reportRes.data];
                         allLoadedEntries.push(...entries.map((e, i) => {
                             const normalized = normalizeEntry(e, `server-${topicId}-${i}`);
-                            if(normalized) { // Ensure originalTopic is set based on filename from server
+                            if(normalized) {
                                 normalized.originalTopic = topicId;
                                 if (topicData.displayTopic && normalized.topic !== topicData.displayTopic) {
-                                     // If topic in JSON is different from filename basis, prefer JSON's topic for display
-                                     // but originalTopic IS the filename basis.
-                                     // This means normalizeEntry should set topic from e.topic,
-                                     // and here we ensure originalTopic is the filename id.
                                 }
                             }
                             return normalized;
@@ -773,5 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial load trigger
     loadInitialReportsFromServer();
 });
+
+[end of script.js]
 
 [end of script.js]
