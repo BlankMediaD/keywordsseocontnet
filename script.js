@@ -59,56 +59,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function parseCsv(file) {
-        console.log(`Parsing CSV: ${file.name}`);
+        console.log(`[CSV Debug] Parsing CSV: ${file.name}`);
         const reader = new FileReader();
         reader.onload = (event) => {
             const csvData = event.target.result;
+            console.log("[CSV Debug] CSV Data Loaded. Length:", csvData.length);
             const extractedData = [];
             const lines = csvData.split(/\r\n|\n/);
             let hasHeader = false;
             if (lines.length > 0 && lines[0].toLowerCase().includes('keyword') && lines[0].toLowerCase().includes('url')) {
                 hasHeader = true;
+                console.log("[CSV Debug] Header row detected.");
             }
             const startIndex = hasHeader ? 1 : 0;
             for (let i = startIndex; i < lines.length; i++) {
                 const line = lines[i];
-                if (line.trim() === '') continue;
+                console.log(`[CSV Debug] Processing line ${i + 1} (Row ${i + (hasHeader?2:1)}): "${line}"`);
+                if (line.trim() === '') {
+                    console.log(`[CSV Debug] Line ${i + 1} is empty, skipping.`);
+                    continue;
+                }
+
                 const columns = parseCsvLine(line);
+                console.log(`[CSV Debug] Line ${i + 1} parsed into columns:`, JSON.stringify(columns));
+
                 if (columns.length > 7) {
                     const keyword = columns[0]?.trim();
                     const rawUrl = columns[7]?.trim();
+                    const serpAttribute = columns[6]?.trim() || '';
+
+                    console.log(`[CSV Debug] Line ${i + 1} - Extracted Keyword: "${keyword}", RawURL: "${rawUrl}", SERP Attribute: "${serpAttribute}"`);
+
                     if (!rawUrl) {
-                        console.warn(`Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): URL in Column H is missing or empty. Line: "${line}"`);
+                        console.warn(`[CSV Debug] Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): URL in Column H is missing or empty. Line: "${line}"`);
                         continue;
                     }
+
                     if ((rawUrl.includes(' ') || !rawUrl.includes('.')) && rawUrl !== 'localhost' && !rawUrl.startsWith('localhost/')) {
-                         console.warn(`Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): Value in Column H ('${rawUrl}') does not appear to be a valid URL. Line: "${line}"`);
+                         console.warn(`[CSV Debug] Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): Value in Column H ('${rawUrl}') does not appear to be a valid URL structure (contains space or no dot). Line: "${line}"`);
                          continue;
                     }
+
                     const url = sanitizeUrl(rawUrl);
+                    console.log(`[CSV Debug] Line ${i + 1} - Sanitized URL: "${url}" (from Raw: "${rawUrl}")`);
+
                     if (!url) {
-                        console.warn(`Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): URL in Column H ('${rawUrl}') was deemed invalid after sanitization. Line: "${line}"`);
+                        console.warn(`[CSV Debug] Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): URL in Column H ('${rawUrl}') was deemed invalid after full sanitization. Line: "${line}"`);
                         continue;
                     }
-                    const serpAttribute = columns[6]?.trim() || '';
-                    if (keyword || keyword === '') {
-                        extractedData.push({ keyword, url, serpAttribute });
-                    } else {
-                        console.warn(`Line ${i + 1} (Row ${i + (hasHeader?2:1)}): Keyword in Column A is undefined for URL '${url}'. Processing URL with empty keyword text.`);
-                        extractedData.push({ keyword: '', url, serpAttribute });
+
+                    const finalKeyword = (typeof keyword === 'string') ? keyword : '';
+                    if (finalKeyword === '' && (keyword !== undefined && keyword !== null)) {
+                         console.log(`[CSV Debug] Line ${i + 1} (Row ${i + (hasHeader?2:1)}): Keyword was present but empty after trim for URL '${url}'.`);
+                    } else if (keyword === undefined || keyword === null) {
+                        console.warn(`[CSV Debug] Line ${i + 1} (Row ${i + (hasHeader?2:1)}): Keyword in Column A is missing or undefined for URL '${url}'. Processing URL with empty keyword text.`);
                     }
+
+                    extractedData.push({ keyword: finalKeyword, url, serpAttribute });
+                    console.log(`[CSV Debug] Line ${i + 1} - Pushed to extractedData:`, { keyword: finalKeyword, url, serpAttribute });
+
                 } else {
-                    console.warn(`Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): Not enough columns. Line: "${line}"`);
+                    console.warn(`[CSV Debug] Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): Not enough columns (found ${columns.length}, expected >7). Line: "${line}"`);
                 }
             }
+
+            console.log("[CSV Debug] Total raw entries extracted:", extractedData.length);
             if (extractedData.length === 0) {
-                urlEntriesContainer.innerHTML = '<p class="text-center text-danger"><strong>Error:</strong> No valid data found in CSV.</p>';
+                urlEntriesContainer.innerHTML = '<p class="text-center text-danger"><strong>Error:</strong> No valid data found in CSV after parsing. Check console for details.</p>';
                 reportControlsDiv.style.display = 'none';
                 return;
             }
             processParsedCsvData(extractedData);
         };
-        reader.onerror = () => alert("Error reading file.");
+        reader.onerror = () => {
+            console.error("[CSV Debug] FileReader error.");
+            alert("Error reading file.");
+        }
         reader.readAsText(file);
     }
 
@@ -137,58 +163,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function processParsedCsvData(rawCsvEntries) {
-        console.log("Processing parsed CSV data into URL-centric view...");
+        console.log("[CSV Debug] Processing parsed CSV data. Raw entries count:", rawCsvEntries.length);
         const urlMap = rawCsvEntries.reduce((acc, entry) => {
             const { url, keyword, serpAttribute } = entry;
+            if (!url) {
+                console.warn("[CSV Debug] Entry with no URL found in rawCsvEntries, skipping:", entry);
+                return acc;
+            }
+
             if (!acc[url]) {
                 acc[url] = {
-                    url: url, clientName: '', clientColor: '', topic: '', originalTopic: '',
+                    url: url,
+                    clientName: '', clientColor: '',
+                    topic: '', originalTopic: '',
                     status: 'select',
-                    keywords: [], competitors: '',
+                    keywords: [],
+                    competitors: '',
                     manualContentAnalysis: { pastedSource: '', metaTitle: '', metaDescription: '', metaImage: '', wordCount: 0 },
                     isExpanded: false
                 };
+                console.log(`[CSV Debug] Created new map entry for URL: ${url}`);
             }
-            if (keyword && !acc[url].keywords.some(kw => kw.text.toLowerCase() === keyword.toLowerCase())) {
+
+            if (keyword && keyword.trim() !== '' && !acc[url].keywords.some(kw => kw.text.toLowerCase() === keyword.toLowerCase())) {
                  acc[url].keywords.push({ text: keyword, serpAttribute: serpAttribute || '' });
+                 console.log(`[CSV Debug] Added keyword "${keyword}" with SERP attribute "${serpAttribute}" to URL ${url}`);
+            } else if (keyword && keyword.trim() !== '') {
+                console.log(`[CSV Debug] Keyword "${keyword}" already exists for URL ${url} or is a duplicate, not adding again from this CSV row.`);
             }
             return acc;
         }, {});
-        const newEntries = Object.values(urlMap).map((urlData, index) => ({
+
+        console.log("[CSV Debug] urlMap created:", urlMap);
+        const newOrUpdatedEntriesFromCsv = Object.values(urlMap).map((urlData, index) => ({
             ...urlData,
-            id: `csv-entry-${Date.now()}-${index}`
+            id: urlData.id || `csv-entry-${Date.now()}-${index}`
         }));
 
-        newEntries.forEach(newEntry => {
-            const existingEntryIndex = urlReportData.findIndex(e => e.url === newEntry.url);
-            if (existingEntryIndex > -1) {
-                const existingEntry = urlReportData[existingEntryIndex];
-                newEntry.topic = existingEntry.topic;
-                newEntry.originalTopic = existingEntry.originalTopic;
-                newEntry.status = existingEntry.status;
-                newEntry.clientName = existingEntry.clientName;
-                newEntry.clientColor = existingEntry.clientColor;
-                newEntry.competitors = existingEntry.competitors;
-                newEntry.manualContentAnalysis = existingEntry.manualContentAnalysis;
-                newEntry.isExpanded = existingEntry.isExpanded;
+        console.log("[CSV Debug] newOrUpdatedEntriesFromCsv count:", newOrUpdatedEntriesFromCsv.length, newOrUpdatedEntriesFromCsv);
 
-                const existingKeywords = new Set(existingEntry.keywords.map(k => k.text.toLowerCase()));
-                newEntry.keywords.forEach(nk => {
-                    if(!existingKeywords.has(nk.text.toLowerCase())) {
-                        existingEntry.keywords.push(nk);
+        newOrUpdatedEntriesFromCsv.forEach(csvEntry => {
+            const existingEntryIndex = urlReportData.findIndex(e => e.url === csvEntry.url);
+            if (existingEntryIndex > -1) {
+                console.log(`[CSV Debug] Merging CSV data for URL: ${csvEntry.url} with existing server data.`);
+                const existingEntry = urlReportData[existingEntryIndex];
+
+                const existingKeywordsSet = new Set(existingEntry.keywords.map(k => k.text.toLowerCase()));
+                let mergedKeywords = [...existingEntry.keywords];
+
+                csvEntry.keywords.forEach(csvKw => {
+                    if (!existingKeywordsSet.has(csvKw.text.toLowerCase())) {
+                        mergedKeywords.push(csvKw);
+                        console.log(`[CSV Debug] Adding new keyword "${csvKw.text}" from CSV to existing entry for ${csvEntry.url}`);
                     } else {
-                        const ek = existingEntry.keywords.find(k => k.text.toLowerCase() === nk.text.toLowerCase());
-                        if(ek && ek.serpAttribute !== nk.serpAttribute) ek.serpAttribute = nk.serpAttribute;
+                        const ek = mergedKeywords.find(k => k.text.toLowerCase() === csvKw.text.toLowerCase());
+                        if (ek && ek.serpAttribute !== csvKw.serpAttribute) {
+                            console.log(`[CSV Debug] Updating SERP attribute for existing keyword "${csvKw.text}" for ${csvEntry.url} from "${ek.serpAttribute}" to "${csvKw.serpAttribute}"`);
+                            ek.serpAttribute = csvKw.serpAttribute;
+                        }
                     }
                 });
-                newEntry.keywords = existingEntry.keywords;
-                urlReportData[existingEntryIndex] = newEntry;
+                urlReportData[existingEntryIndex].keywords = mergedKeywords;
             } else {
-                urlReportData.push(newEntry);
+                console.log(`[CSV Debug] Adding new URL entry from CSV: ${csvEntry.url}`);
+                urlReportData.push(normalizeEntry(csvEntry));
             }
         });
 
-        console.log("Final urlReportData after CSV processing:", urlReportData.length);
+        console.log("[CSV Debug] Final urlReportData after CSV processing/merging:", urlReportData.length, JSON.parse(JSON.stringify(urlReportData)));
         displayUrlsAndKeywords(urlReportData);
         reportControlsDiv.style.display = urlReportData.length > 0 ? 'block' : 'none';
     }
@@ -235,14 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).join('');
             }
 
-            // Logic for client name dropdown pre-selection
             let isOtherClientSelectedInitially = entry.clientName === clientNameOtherSpecify ||
                                                (entry.clientName && !clientNameOptions.includes(entry.clientName));
-            let otherClientValueInitially = (isOtherClientSelected && entry.clientName !== clientNameOtherSpecify) ? entry.clientName : '';
-            if (entry.clientName === clientNameOtherSpecify) { // If "Other (Specify)" was literally the saved value
-                otherClientValueInitially = ''; // Start with an empty text box for user to type
+            let otherClientValueInitially = (isOtherClientSelectedInitially && entry.clientName !== clientNameOtherSpecify) ? entry.clientName : '';
+            if (entry.clientName === clientNameOtherSpecify) {
+                otherClientValueInitially = '';
             }
-
 
             card.innerHTML = `
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -279,12 +319,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="col-md-6">
                             <h6 class="small font-weight-bold">Page Analysis:</h6>
-                            <button class="btn btn-sm btn-primary analyze-content-button mb-2" data-entry-id="${entryId}">Fetch URL Meta (Live)</button>
-                             <small class="form-text text-muted mb-2">Or, paste source below and click "Extract Info from Paste".</small>
-                            <div class="manual-analysis-section" style="border: 1px solid #eee; padding: 10px; border-radius: 5px;">
+                            <button class="btn btn-sm btn-primary live-fetch-meta-button mb-2" data-entry-id="${entryId}">Fetch URL Meta (Live)</button>
+                            <button class="btn btn-sm btn-outline-secondary toggle-manual-analysis-button mb-2" data-entry-id="${entryId}">Show Manual Input</button>
+                            <div class="manual-analysis-section" style="display: none; border: 1px solid #eee; padding: 10px; border-radius: 5px; margin-top: 5px;">
                                 <div class="form-group">
-                                    <label for="pastedSource-${entryId}" class="small">Paste HTML Source (Fallback):</label>
-                                    <textarea class="form-control form-control-sm pasted-source-input" id="pastedSource-${entryId}" rows="3" placeholder="Paste HTML source..." data-entry-id="${entryId}" style="display:block;">${entry.manualContentAnalysis.pastedSource || ''}</textarea>
+                                    <label for="pastedSource-${entryId}" class="small">Paste HTML Source:</label>
+                                    <textarea class="form-control form-control-sm pasted-source-input" id="pastedSource-${entryId}" rows="3" placeholder="Paste HTML source..." data-entry-id="${entryId}">${entry.manualContentAnalysis.pastedSource || ''}</textarea>
                                     <button class="btn btn-sm btn-dark extract-meta-button mt-1" data-entry-id="${entryId}">Extract Info from Paste</button>
                                 </div>
                                 <div class="meta-results small">
@@ -354,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selectedValue = e.target.value;
                 if (selectedValue === clientNameOtherSpecify) {
                     clientNameOtherInputElement.style.display = 'block';
-                    currentEntryRef.clientName = clientNameOtherInputElement.value.trim(); // Use current text if any, or empty
+                    currentEntryRef.clientName = clientNameOtherInputElement.value.trim();
                     clientNameOtherInputElement.focus();
                 } else {
                     clientNameOtherInputElement.style.display = 'none';
@@ -375,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let displayName = 'No Client';
                 if (entryRef.clientName) {
                     if (entryRef.clientName === clientNameOtherSpecify && clientNameOtherInputElement.value.trim() === '') {
-                        displayName = 'Other (Specify)'; // Indicates "Other" is chosen but not yet specified
+                        displayName = 'Other (Specify)';
                     } else {
                         displayName = entryRef.clientName;
                     }
@@ -389,42 +429,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 badge.style.backgroundColor = entryRef.clientColor || '#6c757d';
             }
-            updateClientBadge(card, currentEntryRef); // Initial call
+            updateClientBadge(card, currentEntryRef);
 
 
-            const liveFetchButton = card.querySelector('.analyze-content-button');
-            liveFetchButton.addEventListener('click', () => {
-                if (!currentEntryRef.url) {
-                    alert("No URL defined for this entry to fetch metadata.");
-                    return;
-                }
-                liveFetchButton.disabled = true;
-                liveFetchButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Fetching...';
-                fetchUrlMetadataWithPHP(currentEntryRef.url, currentEntryRef.manualContentAnalysis, card)
-                    .finally(() => {
-                        liveFetchButton.disabled = false;
-                        liveFetchButton.textContent = 'Fetch URL Meta (Live)';
-                    });
-            });
-
+            const liveFetchButton = card.querySelector('.live-fetch-meta-button');
+            const manualAnalysisSection = card.querySelector('.manual-analysis-section');
+            const toggleManualButton = card.querySelector('.toggle-manual-analysis-button');
             const extractMetaButton = card.querySelector('.extract-meta-button');
             const pastedSourceTextarea = card.querySelector(`#pastedSource-${entryId}`);
             const viewExtractedDetailsButton = card.querySelector('.view-extracted-content-button');
 
-            extractMetaButton.addEventListener('click', () => {
-                const pastedSource = pastedSourceTextarea.value;
-                if (!pastedSource.trim()) {
-                    alert("Please paste HTML source into the textarea first.");
-                    return;
-                }
-                currentEntryRef.manualContentAnalysis.pastedSource = pastedSource;
-                extractMetaFromSource(pastedSource, currentEntryRef.manualContentAnalysis, card);
-                viewExtractedDetailsButton.style.display = (currentEntryRef.manualContentAnalysis.metaTitle || currentEntryRef.manualContentAnalysis.metaDescription) ? 'inline-block' : 'none';
-            });
+            if (toggleManualButton) {
+                toggleManualButton.addEventListener('click', function() {
+                    const isHidden = manualAnalysisSection.style.display === 'none';
+                    manualAnalysisSection.style.display = isHidden ? 'block' : 'none';
+                    this.textContent = isHidden ? 'Hide Manual Input' : 'Show Manual Input';
+                });
+            }
 
-            viewExtractedDetailsButton.addEventListener('click', () => {
-                populateAndShowContentModal(currentEntryRef.manualContentAnalysis);
-            });
+            if (liveFetchButton) {
+                liveFetchButton.addEventListener('click', () => {
+                    if (!currentEntryRef.url) {
+                        alert("No URL defined for this entry to fetch metadata.");
+                        return;
+                    }
+                    liveFetchButton.disabled = true;
+                    liveFetchButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Fetching...';
+
+                    // Optionally hide manual section when live fetch starts, show if it fails
+                    // if (manualAnalysisSection) manualAnalysisSection.style.display = 'none';
+                    // if (toggleManualButton) toggleManualButton.textContent = 'Show Manual Input';
+
+                    fetchUrlMetadataWithPHP(currentEntryRef.url, currentEntryRef.manualContentAnalysis, card)
+                        .finally(() => {
+                            liveFetchButton.disabled = false;
+                            liveFetchButton.textContent = 'Fetch URL Meta (Live)';
+                        });
+                });
+            }
+
+            if (extractMetaButton) {
+                extractMetaButton.addEventListener('click', () => {
+                    const pastedSource = pastedSourceTextarea.value;
+                    if (!pastedSource.trim()) {
+                        alert("Please paste HTML source into the textarea first.");
+                        return;
+                    }
+                    currentEntryRef.manualContentAnalysis.pastedSource = pastedSource;
+                    extractMetaFromSource(pastedSource, currentEntryRef.manualContentAnalysis, card);
+                    viewExtractedDetailsButton.style.display = (currentEntryRef.manualContentAnalysis.metaTitle || currentEntryRef.manualContentAnalysis.metaDescription) ? 'inline-block' : 'none';
+                });
+            }
+
+            if (viewExtractedDetailsButton) {
+                viewExtractedDetailsButton.addEventListener('click', () => {
+                    populateAndShowContentModal(currentEntryRef.manualContentAnalysis);
+                });
+            }
 
             card.querySelector('.save-entry-button').addEventListener('click', () => saveSingleEntryReport(entryId));
             const deleteButton = card.querySelector('.delete-entry-button');
@@ -442,6 +503,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchUrlMetadataWithPHP(urlToFetch, analysisObject, cardElement) {
         console.log(`Fetching metadata for: ${urlToFetch} via PHP proxy`);
+        const manualAnalysisSection = cardElement ? cardElement.querySelector('.manual-analysis-section') : null;
+        const toggleManualButton = cardElement ? cardElement.querySelector('.toggle-manual-analysis-button') : null;
         try {
             const formData = new FormData();
             formData.append('url', urlToFetch);
@@ -466,6 +529,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     cardElement.querySelector('.word-count-display').textContent = analysisObject.wordCount || '-';
                     const viewButton = cardElement.querySelector('.view-extracted-content-button');
                     viewButton.style.display = (analysisObject.metaTitle || analysisObject.metaDescription) ? 'inline-block' : 'none';
+                    if (manualAnalysisSection) manualAnalysisSection.style.display = 'none'; // Hide manual section on success
+                    if (toggleManualButton) toggleManualButton.textContent = 'Show Manual Input';
                 }
                 alert(`Successfully fetched metadata for ${urlToFetch}`);
             } else {
@@ -474,16 +539,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (result.httpStatusCode) errorMessage += ` (Proxy HTTP Status: ${result.httpStatusCode})`;
                 alert(`Failed to fetch metadata: ${errorMessage}`);
                 console.error("PHP metadata fetch error:", result);
-                if (cardElement) {
-                    cardElement.querySelector(`#pastedSource-${cardElement.id.replace('url-entry-','')}`).style.display = 'block';
-                }
+                if (manualAnalysisSection) manualAnalysisSection.style.display = 'block'; // Show on failure
+                if (toggleManualButton) toggleManualButton.textContent = 'Hide Manual Input';
             }
         } catch (error) {
             console.error('Error calling fetch_url_meta.php:', error);
             alert(`Error fetching metadata: ${error.message}. Check console. Manual paste is available.`);
-             if (cardElement) {
-                cardElement.querySelector(`#pastedSource-${cardElement.id.replace('url-entry-','')}`).style.display = 'block';
-            }
+             if (manualAnalysisSection) manualAnalysisSection.style.display = 'block'; // Show on any error
+             if (toggleManualButton) toggleManualButton.textContent = 'Hide Manual Input';
         }
     }
 
@@ -522,13 +585,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modalMetaDescription').querySelector('span').textContent = analysisData.metaDescription || 'N/A';
         const imgElement = document.getElementById('modalMetaImage');
         const imgUrlSpan = document.getElementById('modalMetaImageUrl');
-        imgElement.style.display = 'none'; // Hide by default
-        imgUrlSpan.textContent = 'N/A';    // Default text
-        imgElement.removeAttribute('src'); // Clear previous src
+        imgElement.style.display = 'none';
+        imgUrlSpan.textContent = 'N/A';
+        imgElement.removeAttribute('src');
         imgElement.onerror = function() {
             imgUrlSpan.textContent = `Failed to load image (access denied or not found): ${this.src}`;
-            this.style.display = 'none'; // Hide broken image icon
-            this.onerror = null; // Prevent infinite loop if placeholder also fails
+            this.style.display = 'none';
+            this.onerror = null;
         };
 
         if (analysisData.metaImage) {
@@ -536,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sanitizedImgUrl) {
                 imgElement.src = sanitizedImgUrl;
                 imgElement.style.display = 'block';
-                imgUrlSpan.textContent = sanitizedImgUrl; // Show the URL we attempted to load
+                imgUrlSpan.textContent = sanitizedImgUrl;
             } else {
                  imgUrlSpan.textContent = 'Invalid image URL provided.';
             }
@@ -545,7 +608,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pastedSourcePreviewElement = document.getElementById('modalPastedSourcePreview');
         if (pastedSourcePreviewElement) {
-            // CRITICAL: Always use .textContent to prevent HTML injection when displaying user-provided source
             pastedSourcePreviewElement.textContent = analysisData.pastedSource
                 ? analysisData.pastedSource.substring(0, 1000) + (analysisData.pastedSource.length > 1000 ? '...' : '')
                 : 'No source pasted.';
@@ -789,6 +851,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial load trigger
     loadInitialReportsFromServer();
 });
+
+[end of script.js]
 
 [end of script.js]
 
