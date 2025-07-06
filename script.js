@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const defaultSerpIcon = 'ℹ️';
 
+    const clientNameOptions = ["TBGC", "TCC", "BlankAnalytica", "Other (Specify)"];
+    const clientNameOtherSpecify = "Other (Specify)";
+
     const statuses = {
         select: "Select Status...",
         used_for_content: "Used for content",
@@ -72,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (line.trim() === '') continue;
                 const columns = parseCsvLine(line);
                 if (columns.length > 7) {
-                    const keyword = columns[0]?.trim(); // Keyword is from first declaration
+                    const keyword = columns[0]?.trim();
                     const rawUrl = columns[7]?.trim();
                     if (!rawUrl) {
                         console.warn(`Skipping line ${i + 1} (Row ${i + (hasHeader?2:1)}): URL in Column H is missing or empty. Line: "${line}"`);
@@ -88,10 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         continue;
                     }
                     const serpAttribute = columns[6]?.trim() || '';
-                    // No second keyword declaration here
-                    if (keyword || keyword === '') { // Process even if keyword is empty string, as long as URL is valid
+                    if (keyword || keyword === '') {
                         extractedData.push({ keyword, url, serpAttribute });
-                    } else { // This case (keyword is null/undefined) should ideally not happen if columns[0] exists
+                    } else {
                         console.warn(`Line ${i + 1} (Row ${i + (hasHeader?2:1)}): Keyword in Column A is undefined for URL '${url}'. Processing URL with empty keyword text.`);
                         extractedData.push({ keyword: '', url, serpAttribute });
                     }
@@ -140,7 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const { url, keyword, serpAttribute } = entry;
             if (!acc[url]) {
                 acc[url] = {
-                    url: url, clientName: '', clientColor: '', topic: '', status: 'select',
+                    url: url, clientName: '', clientColor: '', topic: '', originalTopic: '',
+                    status: 'select',
                     keywords: [], competitors: '',
                     manualContentAnalysis: { pastedSource: '', metaTitle: '', metaDescription: '', metaImage: '', wordCount: 0 },
                     isExpanded: false
@@ -156,32 +159,30 @@ document.addEventListener('DOMContentLoaded', () => {
             id: `csv-entry-${Date.now()}-${index}`
         }));
 
-        // Merge with existing urlReportData if any, replacing entries with the same URL
         newEntries.forEach(newEntry => {
             const existingEntryIndex = urlReportData.findIndex(e => e.url === newEntry.url);
             if (existingEntryIndex > -1) {
-                // Preserve some fields from existing if CSV doesn't override them (e.g., topic, status)
-                // For keywords, we'll merge: add new, don't duplicate
                 const existingEntry = urlReportData[existingEntryIndex];
                 newEntry.topic = existingEntry.topic;
+                newEntry.originalTopic = existingEntry.originalTopic;
                 newEntry.status = existingEntry.status;
                 newEntry.clientName = existingEntry.clientName;
                 newEntry.clientColor = existingEntry.clientColor;
                 newEntry.competitors = existingEntry.competitors;
-                newEntry.manualContentAnalysis = existingEntry.manualContentAnalysis; // Keep existing analysis
+                newEntry.manualContentAnalysis = existingEntry.manualContentAnalysis;
                 newEntry.isExpanded = existingEntry.isExpanded;
 
                 const existingKeywords = new Set(existingEntry.keywords.map(k => k.text.toLowerCase()));
                 newEntry.keywords.forEach(nk => {
                     if(!existingKeywords.has(nk.text.toLowerCase())) {
                         existingEntry.keywords.push(nk);
-                    } else { // Potentially update SERP attribute if different
+                    } else {
                         const ek = existingEntry.keywords.find(k => k.text.toLowerCase() === nk.text.toLowerCase());
                         if(ek && ek.serpAttribute !== nk.serpAttribute) ek.serpAttribute = nk.serpAttribute;
                     }
                 });
-                newEntry.keywords = existingEntry.keywords; // Use the merged list
-                urlReportData[existingEntryIndex] = newEntry; // Replace with merged
+                newEntry.keywords = existingEntry.keywords;
+                urlReportData[existingEntryIndex] = newEntry;
             } else {
                 urlReportData.push(newEntry);
             }
@@ -206,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.classList.add('card', 'url-entry', 'mb-3');
             card.setAttribute('id', `url-entry-${entryId}`);
+
             const clientColor = entry.clientColor || '#6c757d';
             const clientNameDisplay = entry.clientName || 'No Client';
             let keywordsHtml = '<p class="small text-muted">No keywords from CSV.</p>';
@@ -232,6 +234,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
                 }).join('');
             }
+
+            let isOtherClientSelected = entry.clientName === clientNameOtherSpecify || (entry.clientName && !clientNameOptions.includes(entry.clientName));
+            let otherClientValue = (isOtherClientSelected && entry.clientName !== clientNameOtherSpecify) ? entry.clientName : '';
+
             card.innerHTML = `
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="url-header-main">
@@ -287,8 +293,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <hr>
                     <div class="form-group mt-2">
-                        <label for="clientName-${entryId}" class="small font-weight-bold">Client Name (for this entry):</label>
-                        <input type="text" class="form-control form-control-sm client-name-input" id="clientName-${entryId}" placeholder="Enter client name" data-entry-id="${entryId}" value="${entry.clientName || ''}">
+                        <label for="clientNameSelect-${entryId}" class="small font-weight-bold">Client Name (for this entry):</label>
+                        <select class="form-control form-control-sm client-name-select" id="clientNameSelect-${entryId}" data-entry-id="${entryId}">
+                            ${clientNameOptions.map(opt => {
+                                // If entry.clientName is not in options, "Other (Specify)" should be selected.
+                                // If entry.clientName is in options, that one should be selected.
+                                let selected = false;
+                                if (isOtherClientSelected && opt === clientNameOtherSpecify) {
+                                    selected = true;
+                                } else if (!isOtherClientSelected && entry.clientName === opt) {
+                                    selected = true;
+                                }
+                                return `<option value="${opt}" ${selected ? 'selected' : ''}>${opt}</option>`;
+                            }).join('')}
+                        </select>
+                        <input type="text" class="form-control form-control-sm client-name-other-input mt-1" id="clientNameOther-${entryId}" placeholder="Specify other client" data-entry-id="${entryId}" style="display: ${isOtherClientSelected ? 'block' : 'none'};" value="${otherClientValue}">
                     </div>
                     <div class="mt-2">
                         <button class="btn btn-sm btn-success save-entry-button mr-2" data-entry-id="${entryId}">Save to Server</button>
@@ -323,47 +342,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.querySelector(`#status-${entryId}`).dispatchEvent(new Event('change'));
             }
             card.querySelector(`#competitors-${entryId}`).addEventListener('input', (e) => currentEntryRef.competitors = e.target.value);
-            card.querySelector(`#clientName-${entryId}`).addEventListener('input', (e) => {
-                currentEntryRef.clientName = e.target.value;
-                const badge = card.querySelector('.client-name-badge');
-                badge.textContent = currentEntryRef.clientName || 'No Client';
-                if(currentEntryRef.clientName && !currentEntryRef.clientColor) {
-                    currentEntryRef.clientColor = getRandomColor();
+
+            const clientNameSelectElement = card.querySelector(`#clientNameSelect-${entryId}`);
+            const clientNameOtherInputElement = card.querySelector(`#clientNameOther-${entryId}`);
+
+            clientNameSelectElement.addEventListener('change', (e) => {
+                const selectedValue = e.target.value;
+                if (selectedValue === clientNameOtherSpecify) {
+                    clientNameOtherInputElement.style.display = 'block';
+                    // Don't clear clientNameOtherInputElement.value here, user might be switching back and forth
+                    // currentEntryRef.clientName = clientNameOtherInputElement.value.trim(); // Use existing text if any
+                    clientNameOtherInputElement.focus();
+                     // If "Other" is selected, but text input is empty, clientName is effectively empty until typed
+                    currentEntryRef.clientName = clientNameOtherInputElement.value.trim() || '';
+                } else {
+                    clientNameOtherInputElement.style.display = 'none';
+                    // clientNameOtherInputElement.value = ''; // No need to clear if hidden
+                    currentEntryRef.clientName = selectedValue;
                 }
-                badge.style.backgroundColor = currentEntryRef.clientColor || '#6c757d';
+                updateClientBadge(card, currentEntryRef);
             });
 
-            const analyzeContentButton = card.querySelector('.analyze-content-button');
-            const extractMetaButton = card.querySelector('.extract-meta-button');
-            const pastedSourceTextarea = card.querySelector(`#pastedSource-${entryId}`);
-            const viewExtractedDetailsButton = card.querySelector('.view-extracted-content-button');
-            const manualAnalysisSection = card.querySelector('.manual-analysis-section'); // Get the section itself
-
-            // Change in logic for analyzeContentButton: it now toggles the manual analysis section instead of directly fetching
-            analyzeContentButton.textContent = 'Toggle Page Analysis Section';
-            analyzeContentButton.addEventListener('click', () => {
-                 manualAnalysisSection.style.display = manualAnalysisSection.style.display === 'none' ? 'block' : 'none';
-                 // The live fetch button is now effectively the old "analyze content button"
-                 // Let's rename analyzeContentButton to fetchLiveMetaButton for clarity in its new role
-                 // No, the button text already says "Fetch URL Meta (Live)" - we need a separate button or different logic
-                 // For now, let's assume the "Fetch URL Meta (Live)" is a separate button if that was intended
-                 // Or, this button now *only* toggles the manual section.
-                 // The plan was: "Analyze Page Content (Manually)" button. This reveals: textarea...
-                 // This button should be "Fetch URL Meta (Live)" from HTML.
-                 // The button with class 'analyze-content-button' is the one.
-
-                 // Let's revert to the prior logic for this button to be the live fetch
-                 // and the manual section is just there.
+            clientNameOtherInputElement.addEventListener('input', (e) => {
+                if (clientNameSelectElement.value === clientNameOtherSpecify) {
+                    currentEntryRef.clientName = e.target.value.trim();
+                    updateClientBadge(card, currentEntryRef);
+                }
             });
 
-            // Re-instating direct fetch logic for the button that was 'analyze-content-button'
-            // (assuming its class or ID matches what was intended for live fetch)
-             const liveFetchButton = card.querySelector('.analyze-content-button'); // This IS the button from HTML.
-             liveFetchButton.textContent = 'Fetch URL Meta (Live)'; // Set its text
-             liveFetchButton.classList.remove('btn-info'); // Was 'Toggle Analysis Section'
-             liveFetchButton.classList.add('btn-primary');
+            function updateClientBadge(cardElement, entryRef) {
+                const badge = cardElement.querySelector('.client-name-badge');
+                let displayName = entryRef.clientName || 'No Client';
+                if (entryRef.clientName === clientNameOtherSpecify && clientNameOtherInputElement.value.trim() === '') {
+                    // If "Other" is selected but input is blank, show "No Client" or "Other"
+                    displayName = 'Other (Specify)'; // Or 'No Client'
+                } else if (clientNameSelectElement.value === clientNameOtherSpecify) {
+                    displayName = entryRef.clientName.trim() || 'Other (Specify)';
+                }
 
 
+                badge.textContent = displayName;
+                if (entryRef.clientName && entryRef.clientName.trim() && !entryRef.clientColor) {
+                    entryRef.clientColor = getRandomColor();
+                } else if (!entryRef.clientName || !entryRef.clientName.trim()) {
+                    entryRef.clientColor = '';
+                }
+                badge.style.backgroundColor = entryRef.clientColor || '#6c757d';
+            }
+            updateClientBadge(card, currentEntryRef);
+
+
+            const liveFetchButton = card.querySelector('.analyze-content-button');
             liveFetchButton.addEventListener('click', () => {
                 if (!currentEntryRef.url) {
                     alert("No URL defined for this entry to fetch metadata.");
@@ -378,6 +407,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
             });
 
+            const extractMetaButton = card.querySelector('.extract-meta-button');
+            const pastedSourceTextarea = card.querySelector(`#pastedSource-${entryId}`);
+            const viewExtractedDetailsButton = card.querySelector('.view-extracted-content-button');
 
             extractMetaButton.addEventListener('click', () => {
                 const pastedSource = pastedSourceTextarea.value;
@@ -385,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert("Please paste HTML source into the textarea first.");
                     return;
                 }
-                currentEntryRef.manualContentAnalysis.pastedSource = pastedSource; // Save pasted source
+                currentEntryRef.manualContentAnalysis.pastedSource = pastedSource;
                 extractMetaFromSource(pastedSource, currentEntryRef.manualContentAnalysis, card);
                 viewExtractedDetailsButton.style.display = (currentEntryRef.manualContentAnalysis.metaTitle || currentEntryRef.manualContentAnalysis.metaDescription) ? 'inline-block' : 'none';
             });
@@ -400,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteButton.addEventListener('click', async () => {
                     deleteButton.disabled = true;
                     const success = await deleteEntryFromServer(entryId);
-                    if (!success && document.getElementById(deleteButton.id)) { // Check if button still exists
+                    if (!success && document.getElementById(`url-entry-${entryId}`)) {
                          deleteButton.disabled = false;
                     }
                 });
@@ -424,15 +456,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 analysisObject.metaDescription = result.data.metaDescription || '';
                 analysisObject.metaImage = result.data.metaImage || '';
                 analysisObject.wordCount = result.data.wordCount || 0;
-                analysisObject.pastedSource = ''; // Clear if live fetch successful
+                analysisObject.pastedSource = ''; // Clear the stored pasted source data
                 if (cardElement) {
+                    const pastedSourceTextarea = cardElement.querySelector(`#pastedSource-${cardElement.id.replace('url-entry-','')}`);
+                    if(pastedSourceTextarea) pastedSourceTextarea.value = ''; // Clear the textarea in the UI
                     cardElement.querySelector('.meta-title-display').textContent = analysisObject.metaTitle || '-';
                     cardElement.querySelector('.meta-desc-display').textContent = analysisObject.metaDescription || '-';
                     cardElement.querySelector('.meta-image-display').textContent = analysisObject.metaImage || '-';
                     cardElement.querySelector('.word-count-display').textContent = analysisObject.wordCount || '-';
                     const viewButton = cardElement.querySelector('.view-extracted-content-button');
                     viewButton.style.display = (analysisObject.metaTitle || analysisObject.metaDescription) ? 'inline-block' : 'none';
-                    cardElement.querySelector(`#pastedSource-${cardElement.id.replace('url-entry-','')}`).value = ''; // Clear textarea
                 }
                 alert(`Successfully fetched metadata for ${urlToFetch}`);
             } else {
@@ -441,9 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (result.httpStatusCode) errorMessage += ` (Proxy HTTP Status: ${result.httpStatusCode})`;
                 alert(`Failed to fetch metadata: ${errorMessage}`);
                 console.error("PHP metadata fetch error:", result);
-                if (cardElement) { // On failure, ensure manual section is usable
+                if (cardElement) {
                     cardElement.querySelector(`#pastedSource-${cardElement.id.replace('url-entry-','')}`).style.display = 'block';
-                    // cardElement.querySelector('.manual-analysis-section .extract-meta-button').style.display = 'inline-block'; // Already visible
                 }
             }
         } catch (error) {
@@ -548,15 +580,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const saveButton = document.querySelector(`.save-entry-button[data-entry-id="${entryId}"]`);
         if(saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...'; }
+
+        const payload = {
+            action: 'save',
+            topic: entryToSave.topic,
+            originalTopic: (entryToSave.originalTopic && entryToSave.originalTopic !== entryToSave.topic) ? entryToSave.originalTopic : null,
+            jsonData: entryToSave
+        };
+
         try {
             const response = await fetch('report_handler.php', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'save', topic: entryToSave.topic, jsonData: entryToSave }),
+                body: JSON.stringify(payload),
             });
             if (!response.ok) { const errorText = await response.text(); throw new Error(`Server save failed: ${response.status} ${errorText}`); }
             const result = await response.json();
             if (result.success) {
                 alert(`Entry for topic "${entryToSave.topic}" saved to server! Filename: ${result.data?.filename || 'N/A'}`);
+                entryToSave.originalTopic = entryToSave.topic;
             } else { throw new Error(result.error || 'Unknown error saving to server.'); }
         } catch (error) { console.error('Error saving entry:', error); alert(`Failed to save: ${error.message}`); }
         finally { if(saveButton) { saveButton.disabled = false; saveButton.innerHTML = 'Save to Server'; } }
@@ -582,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveAllModifiedButton.addEventListener('click', async () => {
         const modifiedEntries = urlReportData.filter(entry =>
-            entry.topic?.trim() !== '' && // Must have a topic to be saved individually
+            entry.topic?.trim() !== '' &&
             (entry.status !== 'select' || entry.clientName?.trim() !== '' ||
              entry.competitors?.trim() !== '' || entry.manualContentAnalysis?.pastedSource?.trim() !== '')
         );
@@ -593,16 +634,32 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAllModifiedButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Saving ${modifiedEntries.length}...`;
         let successCount = 0, errorCount = 0;
         for (const entry of modifiedEntries) {
-            // Topic check already done by filter
+            const payload = {
+                action: 'save',
+                topic: entry.topic,
+                jsonData: entry
+            };
+            if (entry.originalTopic && entry.originalTopic !== entry.topic) {
+                payload.originalTopic = entry.originalTopic;
+            }
+
             try {
                 const response = await fetch('report_handler.php', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'save', topic: entry.topic, jsonData: entry }),
+                    body: JSON.stringify(payload),
                 });
                 const result = await response.json();
-                if (response.ok && result.success) successCount++;
-                else { errorCount++; console.error(`Failed to save topic "${entry.topic}":`, result.error || response.statusText); }
-            } catch (err) { errorCount++; console.error(`Error saving topic "${entry.topic}":`, err); }
+                if (response.ok && result.success) {
+                    successCount++;
+                    entry.originalTopic = entry.topic;
+                } else {
+                    errorCount++;
+                    console.error(`Failed to save topic "${entry.topic}":`, result.error || response.statusText);
+                }
+            } catch (err) {
+                errorCount++;
+                console.error(`Error saving topic "${entry.topic}":`, err);
+            }
         }
         saveAllModifiedButton.disabled = false; saveAllModifiedButton.textContent = 'Save All Modified to Server';
         alert(`Save process: ${successCount} succeeded, ${errorCount} failed.`);
@@ -655,13 +712,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const listResult = await response.json();
             if (listResult.success && Array.isArray(listResult.data) && listResult.data.length > 0) {
                 let allLoadedEntries = [];
-                for (const topicId of listResult.data) {
+                for (const topicData of listResult.data) {
+                    const topicId = topicData.id;
                     const loadResp = await fetch(`report_handler.php?action=load&topic_id=${encodeURIComponent(topicId)}`);
                     if (!loadResp.ok) { console.error(`Load failed for ${topicId}`); continue; }
                     const reportRes = await loadResp.json();
                     if (reportRes.success && reportRes.data) {
                         let entries = Array.isArray(reportRes.data) ? reportRes.data : [reportRes.data];
-                        allLoadedEntries.push(...entries.map((e, i) => normalizeEntry(e, `server-${topicId}-${i}`)).filter(Boolean));
+                        allLoadedEntries.push(...entries.map((e, i) => {
+                            const normalized = normalizeEntry(e, `server-${topicId}-${i}`);
+                            if(normalized) { // Ensure originalTopic is set based on filename from server
+                                normalized.originalTopic = topicId;
+                                if (topicData.displayTopic && normalized.topic !== topicData.displayTopic) {
+                                     // If topic in JSON is different from filename basis, prefer JSON's topic for display
+                                     // but originalTopic IS the filename basis.
+                                     // This means normalizeEntry should set topic from e.topic,
+                                     // and here we ensure originalTopic is the filename id.
+                                }
+                            }
+                            return normalized;
+                        }).filter(Boolean));
                     } else console.error(`Error loading ${topicId}:`, reportRes.error);
                 }
                 if (allLoadedEntries.length > 0) {
@@ -683,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clientName: entry.clientName || '',
             clientColor: entry.clientColor || (entry.clientName ? getRandomColor() : ''),
             topic: entry.topic || '',
+            originalTopic: entry.originalTopic || entry.topic || '',
             status: entry.status || 'select',
             keywords: Array.isArray(entry.keywords) ? entry.keywords.map(kw => ({ text: kw.text || '', serpAttribute: kw.serpAttribute || '' })) : [],
             competitors: entry.competitors || '',
@@ -696,10 +767,11 @@ document.addEventListener('DOMContentLoaded', () => {
             isExpanded: typeof entry.isExpanded === 'boolean' ? entry.isExpanded : false
         };
         if (!newEntry.url) { console.warn("Normalized entry missing URL:", entry); return null; }
-        // No automatic topic generation here; topic must exist for server-saved items or be set by user.
         return newEntry;
     }
 
     // Initial load trigger
     loadInitialReportsFromServer();
 });
+
+[end of script.js]
